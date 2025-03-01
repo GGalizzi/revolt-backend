@@ -75,35 +75,6 @@ impl AbstractServerMembers for MongoDb {
             .await)
     }
 
-    async fn fetch_members_by_role<'a>(
-        &self,
-        server_id: &str,
-        roles: &'a [String],
-    ) -> Result<Vec<Member>> {
-        Ok(self
-            .col::<Member>(COL)
-            .find(
-                doc! {
-                    "_id.server": server_id,
-                    "roles": {
-                        "$in": roles,
-                    }
-                },
-                None,
-            )
-            .await
-            .map_err(|_| create_database_error!("find", COL))?
-            .filter_map(|s| async {
-                if cfg!(debug_assertions) {
-                    Some(s.unwrap())
-                } else {
-                    s.ok()
-                }
-            })
-            .collect()
-            .await)
-    }
-
     /// Fetch multiple members by their ids
     async fn fetch_members<'a>(&self, server_id: &str, ids: &'a [String]) -> Result<Vec<Member>> {
         Ok(self

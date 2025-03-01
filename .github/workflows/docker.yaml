@@ -47,7 +47,7 @@ jobs:
 
       - name: Lowercase owner
         run: |
-          echo "OWNERLC=${OWNER,,} >>${GITHUB_ENV}"
+          echo "OWNERLC=${OWNER@L}" >> "${GITHUB_ENV}"
         env:
           OWNER: "${{ github.repository_owner }}"
 

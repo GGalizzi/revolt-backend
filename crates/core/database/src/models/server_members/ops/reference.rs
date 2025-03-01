@@ -66,6 +66,31 @@ impl AbstractServerMembers for ReferenceDb {
             .collect())
     }
 
+    /// Fetch multiple members by their roles
+    async fn fetch_members_by_role<'a>(
+        &self,
+        server_id: &str,
+        role: &'a [String],
+    ) -> Result<Vec<Member>> {
+        let server_members = self.server_members.lock().await;
+        Ok(server_members
+            .iter()
+            .filter_map(|(kv, m)| {
+                if kv.server == server_id && m.roles.iter().any(|r| role.contains(r)) {
+                    return Some(m);
+                }
+
+                None
+            })
+            .cloned()
+            .collect())
+        // Ok(role
+        //     .iter()
+        //     .filter(|id| {
+        //     })
+        //     .collect())
+    }
+
     /// Fetch member count of a server
     async fn fetch_member_count(&self, server_id: &str) -> Result<usize> {
         let server_members = self.server_members.lock().await;

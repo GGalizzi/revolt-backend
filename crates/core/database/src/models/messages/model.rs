@@ -9,6 +9,7 @@ use revolt_models::v0::{
 };
 use revolt_permissions::{ChannelPermission, PermissionValue};
 use revolt_result::Result;
+use rocket::form::validate::Contains;
 use ulid::Ulid;
 use validator::Validate;
 
@@ -309,6 +310,33 @@ impl Message {
         // Parse mentions in message.
         let mut mentions = HashSet::new();
         if allow_mentions {
+            if let Channel::TextChannel { ref server, .. } = channel {
+                let roles = db
+                    .fetch_server(server.as_str())
+                    .await
+                    .expect("server for roles")
+                    .roles;
+
+                let mentioned_roles: Vec<_> = roles
+                    .iter()
+                    .filter(|(_, r)| {
+                        data.content
+                            .clone()
+                            .expect("no content")
+                            .contains(format!("@{}", r.name).as_str())
+                    })
+                    .map(|(rid, _)| rid.clone())
+                    .collect();
+
+                let members = db.fetch_members_by_role(server, &mentioned_roles).await;
+
+                if let Ok(members) = members {
+                    for member in members {
+                        mentions.insert(member.id.user);
+                    }
+                }
+            }
+
             if let Some(content) = &data.content {
                 for capture in RE_MENTION.captures_iter(content) {
                     if let Some(mention) = capture.get(1) {

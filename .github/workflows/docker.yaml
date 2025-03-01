@@ -45,13 +45,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Lowercase owner
+        run: |
+          echo "OWNERLC=${OWNER,,} >>${GITHUB_ENV}"
+        env:
+          OWNER: "${{ github.repository_owner }}"
+
       - name: Build base image
         uses: docker/build-push-action@v4
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
           platforms: linux/amd64,linux/arm64
-          tags: ghcr.io/${{ github.repository_owner }}/base:latest
+          tags: ghcr.io/${{ env.OWNERLC }}/revolt-backend:latest
           cache-from: type=gha,scope=buildx-base-multi-arch
           cache-to: type=gha,scope=buildx-base-multi-arch,mode=max
 
@@ -93,27 +99,27 @@ jobs:
             {
               "delta": {
                 "path": "crates/delta",
-                "tag": "${{ github.repository_owner }}/server"
+                "tag": "${{ env.OWNERLC }}/server"
               },
               "bonfire": {
                 "path": "crates/bonfire",
-                "tag": "${{ github.repository_owner }}/bonfire"
+                "tag": "${{ env.OWNERLC }}/bonfire"
               },
               "autumn": {
                 "path": "crates/services/autumn",
-                "tag": "${{ github.repository_owner }}/autumn"
+                "tag": "${{ env.OWNERLC }}/autumn"
               },
               "january": {
                 "path": "crates/services/january",
-                "tag": "${{ github.repository_owner }}/january"
+                "tag": "${{ env.OWNERLC }}/january"
               },
               "pushd": {
                 "path": "crates/daemons/pushd",
-                "tag": "${{ github.repository_owner }}/pushd"
+                "tag": "${{ env.OWNERLC }}/pushd"
               },
               "crond": {
                 "path": "crates/daemons/crond",
-                "tag": "${{ github.repository_owner }}/crond"
+                "tag": "${{ env.OWNERLC }}/crond"
               }
             }
           export_to: output
@@ -137,5 +143,5 @@ jobs:
           file: ${{ steps.export.outputs.path }}/Dockerfile
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |
-            BASE_IMAGE=ghcr.io/${{ github.repository_owner }}/base:latest
+            BASE_IMAGE=ghcr.io/${{ env.OWNERLC }}/revolt-backend:latest
           labels: ${{ steps.meta.outputs.labels }}

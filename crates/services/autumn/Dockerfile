@@ -1,5 +1,5 @@
 # Build Stage
-FROM ghcr.io/revoltchat/base:latest AS builder
+FROM ghcr.io/ggalizzi/revolt-backend:latest AS builder
 
 # Bundle Stage
 FROM gcr.io/distroless/cc-debian12:nonroot

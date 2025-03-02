@@ -1,5 +1,5 @@
 # Build Stage
-FROM ghcr.io/revoltchat/base:latest AS builder
+FROM ghcr.io/ggalizzi/revolt-backend:latest AS builder
 FROM debian:12 AS debian
 
 # Bundle Stage

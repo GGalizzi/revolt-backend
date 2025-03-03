@@ -17,7 +17,7 @@ use crate::{
     events::client::EventV1,
     tasks::{self, ack::AckEvent},
     util::{bulk_permissions::BulkDatabasePermissionQuery, idempotency::IdempotencyKey},
-    Channel, Database, Emoji, File, User, AMQP,
+    Channel, Database, Emoji, File, Member, User, AMQP,
 };
 
 auto_derived_partial!(
@@ -291,6 +291,8 @@ impl Message {
             MessageAuthor::System { .. } => ("00000000000000000000000000".to_string(), None),
         };
 
+        let mut appended_content = None;
+
         // Start constructing the message
         let message_id = Ulid::new().to_string();
         let mut message = Message {
@@ -317,14 +319,42 @@ impl Message {
                     .expect("server for roles")
                     .roles;
 
+                let fieldbossrole = roles.iter().find(|(id, r)| r.name == "FieldBossPing");
+                let partyrole = roles.iter().find(|(id, r)| r.name == "PartyPing");
+
+                // Role add.
+                let content = data.content.clone().expect("no content");
+
+                if let Some(ref member) = member {
+                    let mut member: Member = member.clone().into();
+                    let mut cmd_role = None;
+                    if content.to_lowercase() == "/role fieldbossping" && fieldbossrole.is_some() {
+                        cmd_role = Some(fieldbossrole.unwrap().0);
+                    } else if content.to_lowercase() == "/role partyping" && partyrole.is_some() {
+                        cmd_role = Some(partyrole.unwrap().0);
+                    }
+                    if let Some(role) = cmd_role {
+                        let has_role = member.roles.contains(role);
+                        if has_role {
+                            member.roles.retain(|s| *s != *role);
+                            appended_content = Some("\n_automated: removed role_");
+                        } else {
+                            member.roles.push(role.clone());
+                            appended_content = Some("\n_automated: added role_");
+                        }
+                        let partial = crate::PartialMember {
+                            roles: Some(member.roles.clone()),
+                            ..Default::default()
+                        };
+                        member.update(db, partial, vec![]).await?;
+                        // db.update_member(&member.id, member, vec![]);
+                    }
+                }
+
+                // Mentioned roles.
                 let mentioned_roles: Vec<_> = roles
                     .iter()
-                    .filter(|(_, r)| {
-                        data.content
-                            .clone()
-                            .expect("no content")
-                            .contains(format!("@{}", r.name).as_str())
-                    })
+                    .filter(|(_, r)| content.contains(format!("@{}", r.name).as_str()))
                     .map(|(rid, _)| rid.clone())
                     .collect();
 
@@ -458,6 +488,11 @@ impl Message {
 
         // Set content
         message.content = data.content;
+        if message.content.is_some() {
+            if let Some(appended_content) = appended_content {
+                message.content.as_mut().unwrap().push_str(appended_content);
+            }
+        }
 
         // Pass-through nonce value for clients
         message.nonce = Some(idempotency.into_key());

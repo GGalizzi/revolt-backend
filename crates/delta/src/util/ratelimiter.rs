@@ -109,7 +109,7 @@ fn resolve_bucket<'r>(request: &'r rocket::Request<'_>) -> (&'r str, Option<&'r 
     };
 
     if let Some(segment) = segment {
-        let resource = resource;
+        // let resource = resource;
 
         let method = request.method();
         match (segment, resource, method) {

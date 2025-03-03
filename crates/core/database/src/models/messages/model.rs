@@ -291,7 +291,7 @@ impl Message {
             MessageAuthor::System { .. } => ("00000000000000000000000000".to_string(), None),
         };
 
-        let mut appended_content = None;
+        let mut appended_content = String::new();
 
         // Start constructing the message
         let message_id = Ulid::new().to_string();
@@ -321,6 +321,7 @@ impl Message {
 
                 let fieldbossrole = roles.iter().find(|(id, r)| r.name == "FieldBossPing");
                 let partyrole = roles.iter().find(|(id, r)| r.name == "PartyPing");
+                let is_privileged = user.as_ref().map_or(false, |x| x.privileged);
 
                 // Role add.
                 let content = data.content.clone().expect("no content");
@@ -328,26 +329,44 @@ impl Message {
                 if let Some(ref member) = member {
                     let mut member: Member = member.clone().into();
                     let mut cmd_role = None;
+                    if content.starts_with("/role") && is_privileged {
+                        appended_content.push_str(
+                            format!(
+                                "\ndbg: roles available {}, {}",
+                                fieldbossrole.is_some(),
+                                partyrole.is_some()
+                            )
+                            .as_str(),
+                        );
+                    }
                     if content.to_lowercase() == "/role fieldbossping" && fieldbossrole.is_some() {
+                        if is_privileged {
+                            appended_content.push_str("\ndbg: content for fbp");
+                        }
                         cmd_role = Some(fieldbossrole.unwrap().0);
                     } else if content.to_lowercase() == "/role partyping" && partyrole.is_some() {
+                        if is_privileged {
+                            appended_content.push_str("\ndbg: content for pp");
+                        }
                         cmd_role = Some(partyrole.unwrap().0);
                     }
                     if let Some(role) = cmd_role {
+                        if is_privileged {
+                            appended_content.push_str("\ndbg: got role");
+                        }
                         let has_role = member.roles.contains(role);
                         if has_role {
                             member.roles.retain(|s| *s != *role);
-                            appended_content = Some("\n_automated: removed role_");
+                            appended_content.push_str("\n_automated: removed role_");
                         } else {
                             member.roles.push(role.clone());
-                            appended_content = Some("\n_automated: added role_");
+                            appended_content.push_str("\n_automated: added role_");
                         }
                         let partial = crate::PartialMember {
                             roles: Some(member.roles.clone()),
                             ..Default::default()
                         };
                         member.update(db, partial, vec![]).await?;
-                        // db.update_member(&member.id, member, vec![]);
                     }
                 }
 
@@ -488,10 +507,12 @@ impl Message {
 
         // Set content
         message.content = data.content;
-        if message.content.is_some() {
-            if let Some(appended_content) = appended_content {
-                message.content.as_mut().unwrap().push_str(appended_content);
-            }
+        if message.content.is_some() && !appended_content.is_empty() {
+            message
+                .content
+                .as_mut()
+                .unwrap()
+                .push_str(appended_content.as_str());
         }
 
         // Pass-through nonce value for clients
